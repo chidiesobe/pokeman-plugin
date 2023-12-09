@@ -13,6 +13,7 @@ if (!defined('ABSPATH')) exit; // Exit if access directly
 class PokemonSearch
 {
     protected string $getCleanedID;
+    protected string $showSpinner;
 
     function __construct()
     {
@@ -20,7 +21,7 @@ class PokemonSearch
     }
 
     // Main menu
-    function pokeAdminMenu()
+    function pokeAdminMenu(): void
     {
         $mainPage = add_menu_page(
             'Pokemon Search by ID',
@@ -58,7 +59,7 @@ class PokemonSearch
     }
 
     // Boostrap access
-    function styleAccess()
+    function styleAccess(): void
     {
         wp_enqueue_style(
             'boostrapCSS',
@@ -80,7 +81,14 @@ class PokemonSearch
         if (substr($input_ids, 0, 1) === ',')  $input_ids = substr($input_ids, 1);
         if (substr($input_ids, -1) === ',')  $input_ids = substr($input_ids, 0, -1);
 
-        $clean_ids = $input_ids;
+        // Remove all non numberic values
+        $exploded_string = explode(',', $input_ids);
+
+        $numeric_values = array_filter($exploded_string, function ($value) {
+            return is_numeric($value);
+        });
+
+        $clean_ids = implode(',', $numeric_values);
         return $clean_ids;
     }
 
@@ -88,36 +96,40 @@ class PokemonSearch
     {
         $clean_ids = explode(',', $ids);
 
-        $api = function ($id) {
-            $response = wp_remote_get("https://pokeapi.co/api/v2/pokemon/{$id}");
-            $body = wp_remote_retrieve_body($response);
+        if (count($clean_ids) >= 1) {
+            // call the Pokemon API and pass required IDs
+            $api = function ($id) {
+                $response = wp_remote_get("https://pokeapi.co/api/v2/pokemon/{$id}");
+                $body = wp_remote_retrieve_body($response);
 
-            $data = json_decode($body, true);
+                $data = json_decode($body, true);
 
-            // Extract the 'id', 'name', 'abilities', 'moves' and 'speicies' from the response
-            $name = $data['name'] ?? '';
+                // Extract the 'id', 'name', 'abilities', 'moves' and 'speicies' from the response
+                $name = $data['name'] ?? '';
 
-            $abilities = array_column($data['abilities'] ?? [], 'ability');
-            $abilityName =  array_column($abilities, 'name');
+                $abilities = array_column($data['abilities'] ?? [], 'ability');
+                $abilityName =  array_column($abilities, 'name');
 
-            $moves = array_column($data['moves'] ?? [], 'move');
-            $movesName = array_column($moves, 'name');
+                $moves = array_column($data['moves'] ?? [], 'move');
+                $movesName = array_column($moves, 'name');
 
-            return array(
-                'name' => $name, 'abilityName' => $abilityName,
-                'movesName' => $movesName,
-            );
-        };
-        $result = array_map($api, $clean_ids);
+                return array(
+                    'name' => $name, 'abilityName' => $abilityName,
+                    'movesName' => $movesName,
+                );
+            };
+            $result = array_map($api, $clean_ids);
 
-        // return the extracted result from the api
-        return $result;
+            // return the extracted result from the api
+            return $result;
+        }
     }
 
     // Process the ID's form after submission
-    function processForm()
+    function processForm(): void
     {
         $current_user = wp_get_current_user();
+
         if (wp_verify_nonce($_POST['pokeNonce'], 'verifyPokemonID') && current_user_can('manage_options')) {
 
             // Clean the supplied ID string
@@ -140,7 +152,7 @@ class PokemonSearch
     }
 
     // Pokemon ID for Filtering
-    function pokemonFilterPage()
+    function pokemonFilterPage(): void
     { ?>
         <div class="container mt-5">
             <div class="text-primary">
@@ -167,12 +179,13 @@ class PokemonSearch
                     </div>
                 </div>
             </div>
+
             <br>
             <form method="POST">
                 <!-- if user submits the form -->
                 <?php
                 if (
-                    $_SERVER['REQUEST_METHOD'] == 'POST'
+                    $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['pokemon_ids']) && isset($_POST['pokemon_ids'])
                     && isset($_POST['form_submitted']) && $_POST['form_submitted'] == "true"
                 ) {
                     $this->processForm();
@@ -186,7 +199,7 @@ class PokemonSearch
                 <label for="pokemon_ids" class="form-label">
                     <p class="mb-1"><strong>Please Enter Your Preferred Comma-Separated Pokeman ID's:</strong></p>
                 </label>
-                <textarea class="form-control mb-2" name="pokemon_ids" placeholder="3,30,2"></textarea>
+                <textarea class="form-control mb-2" name="pokemon_ids" placeholder="Samples IDs 3,30,2"></textarea>
                 <input type="submit" name="submit" value="Search" class="btn btn-sm btn-secondary">
             </form>
             <br>
@@ -236,7 +249,7 @@ class PokemonSearch
     }
 
     // Pokemon search criteria
-    function pokemonOptionPage()
+    function pokemonOptionPage(): void
     { ?>
         <div class="wrap">
             Options page
