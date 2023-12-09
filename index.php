@@ -12,6 +12,8 @@ if (!defined('ABSPATH')) exit; // Exit if access directly
 
 class PokemonSearch
 {
+    protected string $getCleanedID;
+
     function __construct()
     {
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
@@ -69,15 +71,64 @@ class PokemonSearch
         );
     }
 
+    function cleanPokemanID(string $ids = ""): string
+    {
+        // remove white space and ensure string integrity
+        $input_ids = str_replace(' ', '', sanitize_text_field($ids));
+
+        // Check if the string starts or ends with a comma and remove it
+        if (substr($input_ids, 0, 1) === ',')  $input_ids = substr($input_ids, 1);
+        if (substr($input_ids, -1) === ',')  $input_ids = substr($input_ids, 0, -1);
+
+        $clean_ids = $input_ids;
+        return $clean_ids;
+    }
+
+    function pokemonApiCall(string $ids = ""): array
+    {
+        $clean_ids = explode(',', $ids);
+
+        $api = function ($id) {
+            $response = wp_remote_get("https://pokeapi.co/api/v2/pokemon/{$id}");
+            $body = wp_remote_retrieve_body($response);
+
+            $data = json_decode($body, true);
+
+            // Extract the 'id', 'name', 'abilities', 'moves' and 'speicies' from the response
+            $name = $data['name'] ?? '';
+
+            $abilities = array_column($data['abilities'] ?? [], 'ability');
+            $abilityName =  array_column($abilities, 'name');
+
+            $moves = array_column($data['moves'] ?? [], 'move');
+            $movesName = array_column($moves, 'name');
+
+            return array(
+                'name' => $name, 'abilityName' => $abilityName,
+                'movesName' => $movesName,
+            );
+        };
+        $result = array_map($api, $clean_ids);
+
+        // return the extracted result from the api
+        return $result;
+    }
+
     // Process the ID's form after submission
     function processForm()
     {
         $current_user = wp_get_current_user();
-        if (wp_verify_nonce($_POST['pokeNonce'], 'verifyPokemonID') && current_user_can('manage_options')) { ?>
+        if (wp_verify_nonce($_POST['pokeNonce'], 'verifyPokemonID') && current_user_can('manage_options')) {
+
+            // Clean the supplied ID string
+            $clean_ids = $this->cleanPokemanID($_POST['pokemon_ids']);
+            $this->getCleanedID = $clean_ids; ?>
+
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 <strong>Congratulations <?php echo $current_user->display_name . ', ' ?></strong>Your search was successful!
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+
         <?php
         } else { ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -135,10 +186,50 @@ class PokemonSearch
                 <label for="pokemon_ids" class="form-label">
                     <p class="mb-1"><strong>Please Enter Your Preferred Comma-Separated Pokeman ID's:</strong></p>
                 </label>
-                <textarea class="form-control mb-2" name="pokemon_ids" id="pokemon_ids" placeholder="3,30,60,2"></textarea>
+                <textarea class="form-control mb-2" name="pokemon_ids" placeholder="3,30,2"></textarea>
                 <input type="submit" name="submit" value="Search" class="btn btn-sm btn-secondary">
             </form>
+            <br>
+            <!-- Result of the search -->
+            <?php
+            if (isset($this->getCleanedID)) {
+                $response = $this->pokemonApiCall($this->getCleanedID);
+                echo '<div class="row">';
+                foreach ($response as $pokemon) {
+            ?>
+                    <div class="col-sm-6 mb-3 mb-sm-0">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Pokemon's Name:<?= ' ' . ucfirst($pokemon['name']) ?></h5>
+                                <p class="card-text"><?= ' ' . ucfirst($pokemon['name']) ?> is a Pokemon with <strong><?= count($pokemon['movesName']) ?></strong> moves, with the following abilities: <strong><?= ' ' . implode(',', $pokemon['abilityName']) . '.' ?></strong></p>
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#<?= $pokemon['name'] ?>">
+                                    show all moves
+                                </button>
+                                <div class="modal fade" id="<?= $pokemon['name'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">All <?= ' ' . ucfirst($pokemon['name']) ?> Moves</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p class="text-center"><?= implode(',', $pokemon['movesName']) ?></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            <?php
 
+                }
+                echo '</div>';
+            } else {
+                echo 'No search yet';
+            }
+
+            ?>
         </div>
 
     <?php
