@@ -13,7 +13,6 @@ if (!defined('ABSPATH')) exit; // Exit if access directly
 class PokemonSearch
 {
     protected string $getCleanedID;
-    protected string $showSpinner;
 
     function __construct()
     {
@@ -76,6 +75,7 @@ class PokemonSearch
     {
         // remove white space and ensure string integrity
         $input_ids = str_replace(' ', '', sanitize_text_field($ids));
+        $input_ids = str_replace('.', '', sanitize_text_field($input_ids));
 
         // Check if the string starts or ends with a comma and remove it
         if (substr($input_ids, 0, 1) === ',')  $input_ids = substr($input_ids, 1);
@@ -84,10 +84,12 @@ class PokemonSearch
         // Remove all non numberic values
         $exploded_string = explode(',', $input_ids);
 
-        $numeric_values = array_filter($exploded_string, function ($value) {
+        // Remove duplicates
+        $unique_values = array_unique($exploded_string);
+
+        $numeric_values = array_filter($unique_values, function ($value) {
             return is_numeric($value);
         });
-
         $clean_ids = implode(',', $numeric_values);
         return $clean_ids;
     }
@@ -134,14 +136,16 @@ class PokemonSearch
 
             // Clean the supplied ID string
             $clean_ids = $this->cleanPokemanID($_POST['pokemon_ids']);
-            $this->getCleanedID = $clean_ids; ?>
+            $this->getCleanedID = $clean_ids;
 
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <strong>Congratulations <?php echo $current_user->display_name . ', ' ?></strong>Your search was successful!
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            if (!empty($this->getCleanedID)) { ?>
 
-        <?php
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Congratulations <?php echo $current_user->display_name . ', ' ?></strong>Your search was successful!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php
+            }
         } else { ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <strong>Sorry <?php echo $current_user->display_name . ', ' ?></strong>But your search was invalid!
@@ -167,6 +171,8 @@ class PokemonSearch
                         <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordion">
                             <div class="accordion-body">
                                 <ul class="list-group">
+                                    <li class="list-group-item">Only enter whole numbers.</li>
+                                    <li class="list-group-item">All values must be unique.</li>
                                     <li class="list-group-item">All Pokemon IDs must be numeric.</li>
                                     <li class="list-group-item">Do not end a search with a comma.</li>
                                     <li class="list-group-item">Do not start a search with a comma.</li>
