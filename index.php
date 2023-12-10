@@ -58,11 +58,22 @@ class PokemonSearch
             array($this, 'pokemonOptionPage'),
             2
         );
+
+        $apiPage = add_submenu_page(
+            'pokemon-filter',
+            'Api Option',
+            'API Value',
+            'manage_options',
+            'api-url',
+            array($this, 'apiUrlPage'),
+            3
+        );
         //--- Submenu section ends
 
         // Adding Boostrap To Pages
         add_action("load-{$mainPage}", array($this, 'styleAccess'));
         add_action("load-{$logPage}", array($this, 'styleAccess'));
+        add_action("load-{$apiPage}", array($this, 'styleAccess'));
     }
 
     // Boostrap access
@@ -132,29 +143,53 @@ class PokemonSearch
         }
     }
 
-    function processLogs($logs)
+    function secureAPI(string $url): void
     {
-        $file_path = $this->getLogFile();
+        if (wp_verify_nonce($_POST['pokeAPINonce'], 'verifyAPIURL') && current_user_can('manage_options')) {
 
-        file_put_contents($file_path, '');
+            $api_data = esc_url($url);
 
-        // format the string using regular express and append a new line
-        $trimmed_string = preg_replace('/\h+/', ' ', $logs);
-        $normalized_string = preg_replace('/(?<=\d)\s+(?=\d)/m', "\n", $trimmed_string);
-        $final_string = ltrim($normalized_string) . "\n";
+            update_option('secure_api_data', $api_data);
 
-        file_put_contents($file_path, $final_string);
-        $this->msgDisplay->showMessage('', '', 'Log file has been updated successfully!', 'warning',  []);
+            $this->msgDisplay->showMessage('', '', 'API Url stored successfully!', 'warning',  []);
+        } else {
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
+        }
     }
 
-    function pokemonApiCall(string $ids = "")
+    function processLogs($logs)
+    {
+        if (wp_verify_nonce($_POST['pokeLogNonce'], 'verifyLogIDs') && current_user_can('manage_options')) {
+
+            $file_path = $this->getLogFile();
+
+            file_put_contents($file_path, '');
+
+            // format the string using regular express and append a new line
+            $trimmed_string = preg_replace('/\h+/', ' ', $logs);
+            $normalized_string = preg_replace('/(?<=\d)\s+(?=\d)/m', "\n", $trimmed_string);
+            $final_string = ltrim($normalized_string) . "\n";
+
+            file_put_contents($file_path, $final_string);
+            $this->msgDisplay->showMessage('', '', 'Log file has been updated successfully!', 'warning',  []);
+        } else {
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
+        }
+    }
+
+    function pokemonApiCall(string $ids = ""): array
     {
         $clean_ids = explode(',', $ids);
 
         if (count($clean_ids) >= 1) {
             // call the Pokemon API and pass required IDs
             $api = function ($id) {
-                $response = wp_remote_get("https://pokeapi.co/api/v2/pokemon/{$id}");
+
+                // Get the API URL from the options table and make GET request
+                $api_url = get_option('secure_api_data');
+                $request_url = $api_url . $id;
+                $response = wp_remote_get($request_url);
+
                 $body = wp_remote_retrieve_body($response);
 
                 $data = json_decode($body, true);
@@ -326,7 +361,7 @@ class PokemonSearch
                 <br>
                 <!-- Verify submited input  -->
                 <input type="hidden" name="form_submitted" value="true">
-                <?php wp_nonce_field('verifyPokemonID', 'pokeNonce') ?>
+                <?php wp_nonce_field('verifyLogIDs', 'pokeLogNonce') ?>
 
                 <label for="log_ids" class="form-label">
                     <p class="mb-1 text-danger"><strong>All ID's must be entered on a newline:</strong></p>
@@ -338,6 +373,40 @@ class PokemonSearch
                     ?>
                 </textarea>
                 <input type="submit" name="submit" value="Update Log" class="btn btn-sm btn-secondary">
+            </form>
+        </div>
+    <?php
+    }
+
+
+    function apiUrlPage(): void
+    { ?>
+        <div class="container mt-3">
+            <div class="text-primary">
+                <h4 class="text-primary">API URL</h4>
+            </div>
+
+            <form method="POST">
+                <!-- if user submits the form -->
+                <?php
+                if (
+                    $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['api_url']) && isset($_POST['api_url'])
+                    && isset($_POST['form_submitted']) && $_POST['form_submitted'] == "true"
+                ) {
+                    $this->secureAPI($_POST['api_url']);
+                }
+                ?>
+                <br>
+                <!-- Verify submited input  -->
+                <input type="hidden" name="form_submitted" value="true">
+                <?php wp_nonce_field('verifyAPIURL', 'pokeAPINonce') ?>
+
+                <label for="api_url" class="form-label">
+                    <p class="mb-1 text-danger"><strong>Store API URL</strong></p>
+                </label>
+                <input class="form-control mb-2" name="api_url" value=<?php echo get_option('secure_api_data') ?> />
+
+                <input type="submit" name="submit" value="Store API URL" class="btn btn-sm btn-danger">
             </form>
         </div>
 <?php
