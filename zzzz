@@ -9,27 +9,21 @@ Author URI: https://github.com/chidiesobe
 
 if (!defined('ABSPATH')) exit; // Exit if access directly
 
-require_once(plugin_dir_path(__FILE__) . 'inc/LogsProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/MessageDisplay.php');
-require_once(plugin_dir_path(__FILE__) . 'inc/SanitiseProcessor.php');
 
 class PokemonSearch
 {
     protected string $getCleanedID;
-    // protected array $numeric_values;
-    // protected array $nonNumericalValues = [];
+    protected array $numeric_values;
+    protected array $nonNumericalValues;
 
 
     function __construct()
     {
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
 
-        // $this->sanitiseProcessor->nonNumericalValues = [];
-
         // instatiating class 
         $this->msgDisplay = new MessageDisplay();
-        $this->logsProcessor = new LogsProcessor();
-        $this->sanitiseProcessor = new SanitiseProcessor();
     }
 
     // Main menu
@@ -61,7 +55,7 @@ class PokemonSearch
             'Logs',
             'manage_options',
             'pokemon-logs',
-            array($this, 'pokemonLogsPage'),
+            array($this, 'pokemonOptionPage'),
             2
         );
 
@@ -96,12 +90,58 @@ class PokemonSearch
         );
     }
 
-    // get log file
+    function getLogFile()
+    {
+        return plugin_dir_path(__FILE__) . 'logs/logs.txt';
+    }
 
-    //    Clean pokeman id
+    function cleanPokemanID(string $ids = ""): string
+    {
+        // remove white space and ensure string integrity
+        $input_ids = str_replace(' ', '', sanitize_text_field($ids));
+        $input_ids = str_replace('.', '', sanitize_text_field($input_ids));
 
-    // write log
+        // Check if the string starts or ends with a comma and remove it
+        if (substr($input_ids, 0, 1) === ',')  $input_ids = substr($input_ids, 1);
+        if (substr($input_ids, -1) === ',')  $input_ids = substr($input_ids, 0, -1);
 
+        // Remove all non numberic values
+        $exploded_string = explode(',', $input_ids);
+
+        // Remove duplicates
+        $unique_values = array_unique($exploded_string);
+
+        // Remove numbers that exist in the logs file
+        $log_numbers = file($this->getLogFile(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $non_logged_number = array_filter($unique_values, function ($values) use ($log_numbers) {
+            return !in_array($values, $log_numbers);
+        });
+
+        // Seperate numerical and non numerical values 
+        $this->numeric_values = array_filter($non_logged_number, function ($value) {
+            return is_numeric($value);
+        });
+        $this->nonNumericalValues = array_diff($non_logged_number, $this->numeric_values);
+
+        $clean_ids = implode(',', $this->numeric_values);
+        return $clean_ids;
+    }
+
+    function writeToLog(int $id): void
+    {
+        // Open or create file if does not exist
+        $file = fopen($this->getLogFile(), 'a');
+
+        if ($file) {
+            // Write data to end of the file
+            fwrite($file, $id . PHP_EOL);
+            // Close the file
+            fclose($file);
+        } else {
+            // Handle error if file couldn't be opened
+            echo "Unable to open file!";
+        }
+    }
 
     function secureAPI(string $url): void
     {
@@ -113,11 +153,29 @@ class PokemonSearch
 
             $this->msgDisplay->showMessage('', '', 'API Url stored successfully!', 'warning',  []);
         } else {
-            $this->msgDisplay->showMessage('Sorry', '', ' but you are not authorized to carry out this action', 'danger', []);
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
         }
     }
 
-    // process log
+    function processLogs($logs)
+    {
+        if (wp_verify_nonce($_POST['pokeLogNonce'], 'verifyLogIDs') && current_user_can('manage_options')) {
+
+            $file_path = $this->getLogFile();
+
+            file_put_contents($file_path, '');
+
+            // format the string using regular express and append a new line
+            $trimmed_string = preg_replace('/\h+/', ' ', $logs);
+            $normalized_string = preg_replace('/(?<=\d)\s+(?=\d)/m', "\n", $trimmed_string);
+            $final_string = ltrim($normalized_string) . "\n";
+
+            file_put_contents($file_path, $final_string);
+            $this->msgDisplay->showMessage('', '', 'Log file has been updated successfully!', 'warning',  []);
+        } else {
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
+        }
+    }
 
     function pokemonApiCall(string $ids = ""): array
     {
@@ -145,8 +203,8 @@ class PokemonSearch
                 $moves = array_column($data['moves'] ?? [], 'move');
                 $movesName = array_column($moves, 'name');
 
-                if (empty($name) && !empty($this->sanitiseProcessor->getNumericValues())) {
-                    $this->logsProcessor->writeToLog($id);
+                if (empty($name) && !empty($this->numeric_values)) {
+                    $this->writeToLog($id);
                 }
 
                 return array(
@@ -171,29 +229,14 @@ class PokemonSearch
         if (wp_verify_nonce($_POST['pokeNonce'], 'verifyPokemonID') && current_user_can('manage_options')) {
 
             // Clean the supplied ID string
-
-            $this->sanitiseProcessor->setPokemonIDs($_POST['pokemon_ids']);
-            $cleaned_id = $this->sanitiseProcessor->getNumericValues();
-
-            $this->getCleanedID = $cleaned_id;
+            $clean_ids = $this->cleanPokemanID($_POST['pokemon_ids']);
+            $this->getCleanedID = $clean_ids;
 
             if (!empty($this->getCleanedID)) {
-                $this->msgDisplay->showMessage(
-                    'Congratulations ',
-                    $current_user->display_name,
-                    'your search was successful!',
-                    'success',
-                    $this->sanitiseProcessor->nonNumericalValues
-                );
+                $this->msgDisplay->showMessage('Congratulations ', $current_user->display_name, 'your search was successful!', 'success',  $this->nonNumericalValues);
             }
         } else {
-            $this->msgDisplay->showMessage(
-                'Sorry',
-                $current_user->display_name,
-                ' but you are not authorized to carry out this action',
-                'danger',
-                []
-            );
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
         }
     }
 
@@ -252,12 +295,10 @@ class PokemonSearch
             <br>
             <!-- Result of the search -->
             <?php
-
             if (isset($this->getCleanedID)) {
                 $response = $this->pokemonApiCall($this->getCleanedID);
-                if (!empty($this->sanitiseProcessor->getNumericValues())) {
+                if (!empty($this->numeric_values)) {
                     echo '<div class="row">';
-                    // var_dump($response);
                     foreach ($response as $pokemon) {
             ?>
                         <div class="col-sm-6 mb-3 mb-sm-0">
@@ -299,7 +340,7 @@ class PokemonSearch
     }
 
     // Pokemon search criteria
-    function pokemonLogsPage(): void
+    function pokemonOptionPage(): void
     { ?>
         <div class="container mt-3">
             <div class="text-primary">
@@ -313,7 +354,7 @@ class PokemonSearch
                     $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['log_ids']) && isset($_POST['log_ids'])
                     && isset($_POST['form_submitted']) && $_POST['form_submitted'] == "true"
                 ) {
-                    $this->logsProcessor->processLogs($_POST['log_ids']);
+                    $this->processLogs($_POST['log_ids']);
                 }
                 ?>
                 <br>
@@ -326,7 +367,7 @@ class PokemonSearch
                 </label>
                 <textarea class="form-control mb-2" name="log_ids" rows="15">
                     <?php
-                    $file_content = file_get_contents($this->logsProcessor->getLogFilePath);
+                    $file_content = file_get_contents($this->getLogFile());
                     echo  esc_textarea($file_content);
                     ?>
                 </textarea>
