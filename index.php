@@ -9,6 +9,7 @@ Author URI: https://github.com/chidiesobe
 
 if (!defined('ABSPATH')) exit; // Exit if access directly
 
+require_once(plugin_dir_path(__FILE__) . 'inc/ApiProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/LogsProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/MessageDisplay.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/SanitiseProcessor.php');
@@ -24,11 +25,11 @@ class PokemonSearch
     {
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
 
-        // $this->sanitiseProcessor->nonNumericalValues = [];
-
         // instatiating class 
+        $this->apiProcessor = new ApiProcessor();
         $this->msgDisplay = new MessageDisplay();
         $this->logsProcessor = new LogsProcessor();
+        $this->apiPreprocessor = new ApiProcessor();
         $this->sanitiseProcessor = new SanitiseProcessor();
     }
 
@@ -96,73 +97,6 @@ class PokemonSearch
         );
     }
 
-    // get log file
-
-    //    Clean pokeman id
-
-    // write log
-
-
-    function secureAPI(string $url): void
-    {
-        if (wp_verify_nonce($_POST['pokeAPINonce'], 'verifyAPIURL') && current_user_can('manage_options')) {
-
-            $api_data = esc_url($url);
-
-            update_option('secure_api_data', $api_data);
-
-            $this->msgDisplay->showMessage('', '', 'API Url stored successfully!', 'warning',  []);
-        } else {
-            $this->msgDisplay->showMessage('Sorry', '', ' but you are not authorized to carry out this action', 'danger', []);
-        }
-    }
-
-    // process log
-
-    function pokemonApiCall(string $ids = ""): array
-    {
-        $clean_ids = explode(',', $ids);
-
-        if (count($clean_ids) >= 1) {
-            // call the Pokemon API and pass required IDs
-            $api = function ($id) {
-
-                // Get the API URL from the options table and make GET request
-                $api_url = get_option('secure_api_data');
-                $request_url = $api_url . $id;
-                $response = wp_remote_get($request_url);
-
-                $body = wp_remote_retrieve_body($response);
-
-                $data = json_decode($body, true);
-
-                // Extract the 'id', 'name', 'abilities', 'moves' and 'speicies' from the response
-                $name = $data['name'] ?? '';
-
-                $abilities = array_column($data['abilities'] ?? [], 'ability');
-                $abilityName =  array_column($abilities, 'name');
-
-                $moves = array_column($data['moves'] ?? [], 'move');
-                $movesName = array_column($moves, 'name');
-
-                if (empty($name) && !empty($this->sanitiseProcessor->getNumericValues())) {
-                    $this->logsProcessor->writeToLog($id);
-                }
-
-                return array(
-                    'name' => $name, 'abilityName' => $abilityName,
-                    'movesName' => $movesName,
-                );
-            };
-            // if (isset($api[0]["name"])) {
-            $result = array_map($api, $clean_ids);
-
-            // return the extracted result from the api
-            return $result;
-            // }
-        }
-    }
-
     // Process the ID's form after submission
     function processForm(): void
     {
@@ -170,8 +104,7 @@ class PokemonSearch
 
         if (wp_verify_nonce($_POST['pokeNonce'], 'verifyPokemonID') && current_user_can('manage_options')) {
 
-            // Clean the supplied ID string
-
+            // Clean the supplied ID string 
             $this->sanitiseProcessor->setPokemonIDs($_POST['pokemon_ids']);
             $cleaned_id = $this->sanitiseProcessor->getNumericValues();
 
@@ -254,7 +187,10 @@ class PokemonSearch
             <?php
 
             if (isset($this->getCleanedID)) {
-                $response = $this->pokemonApiCall($this->getCleanedID);
+
+                $this->apiPreprocessor->setPokemonApiCall($this->getCleanedID);
+                $response =  $this->apiPreprocessor->getPokemonApiCall();
+
                 if (!empty($this->sanitiseProcessor->getNumericValues())) {
                     echo '<div class="row">';
                     // var_dump($response);
@@ -351,7 +287,7 @@ class PokemonSearch
                     $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['api_url']) && isset($_POST['api_url'])
                     && isset($_POST['form_submitted']) && $_POST['form_submitted'] == "true"
                 ) {
-                    $this->secureAPI($_POST['api_url']);
+                    $this->apiProcessor->setSecureAPI($_POST['api_url']);
                 }
                 ?>
                 <br>

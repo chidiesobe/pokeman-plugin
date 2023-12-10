@@ -10,7 +10,10 @@ class SanitiseProcessor
     {
         $this->logsProcessor = new LogsProcessor();
     }
-    public function getNumericValues(): string
+
+    // The mixed type is used to handle 
+    // cases when a user enters a non numeric value only
+    public function getNumericValues(): mixed
     {
         return $this->numericValues;
     }
@@ -49,7 +52,7 @@ class SanitiseProcessor
         });
         $this->nonNumericalValues = array_diff($non_logged_number, $this->numericValues);
 
-        $clean_ids = implode(',', $this->numericValues);
-        $this->numericValues = $clean_ids;
+        $this->numericValues = implode(',', $this->numericValues);
+        // $this->numericValues = $clean_ids;
     }
 }
