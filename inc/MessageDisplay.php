@@ -6,7 +6,7 @@ class MessageDisplay
     { ?>
 
         <div class="alert alert-<?php echo $messageType ?> alert-dismissible fade show" role="alert">
-            <strong><?php echo $expression ?> <?php echo $username . ', ' ?></strong>
+            <strong><?php echo $expression ?> <?php echo $username . ' ' ?></strong>
             <?php
             echo $message;
             if (!empty($optionalParams)) {

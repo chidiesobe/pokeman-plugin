@@ -49,19 +49,20 @@ class PokemonSearch
             1
         );
 
-        add_submenu_page(
+        $logPage = add_submenu_page(
             'pokemon-filter',
             'Pokemon Option',
-            'Options',
+            'Logs',
             'manage_options',
-            'pokemon-options',
+            'pokemon-logs',
             array($this, 'pokemonOptionPage'),
             2
         );
         //--- Submenu section ends
 
-        // Adding Boostrap
+        // Adding Boostrap To Pages
         add_action("load-{$mainPage}", array($this, 'styleAccess'));
+        add_action("load-{$logPage}", array($this, 'styleAccess'));
     }
 
     // Boostrap access
@@ -115,7 +116,7 @@ class PokemonSearch
         return $clean_ids;
     }
 
-    public function writeToLog(int $id): void
+    function writeToLog(int $id): void
     {
         // Open or create file if does not exist
         $file = fopen($this->getLogFile(), 'a');
@@ -131,6 +132,20 @@ class PokemonSearch
         }
     }
 
+    function processLogs($logs)
+    {
+        $file_path = $this->getLogFile();
+
+        file_put_contents($file_path, '');
+
+        // format the string using regular express and append a new line
+        $trimmed_string = preg_replace('/\h+/', ' ', $logs);
+        $normalized_string = preg_replace('/(?<=\d)\s+(?=\d)/m', "\n", $trimmed_string);
+        $final_string = ltrim($normalized_string) . "\n";
+
+        file_put_contents($file_path, $final_string);
+        $this->msgDisplay->showMessage('', '', 'Log file has been updated successfully!', 'warning',  []);
+    }
 
     function pokemonApiCall(string $ids = "")
     {
@@ -193,9 +208,9 @@ class PokemonSearch
     // Pokemon ID for Filtering
     function pokemonFilterPage(): void
     { ?>
-        <div class="container mt-5">
+        <div class="container mt-3">
             <div class="text-primary">
-                <h3 class="text-primary">Pokemon Filter</h3>
+                <h4 class="text-primary">Pokemon Filter</h4>
                 <div class="accordion" id="accordion">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingOne">
@@ -293,8 +308,37 @@ class PokemonSearch
     // Pokemon search criteria
     function pokemonOptionPage(): void
     { ?>
-        <div class="wrap">
-            Options page
+        <div class="container mt-3">
+            <div class="text-primary">
+                <h4 class="text-primary">Pokemon Logs</h4>
+            </div>
+
+            <form method="POST">
+                <!-- if user submits the form -->
+                <?php
+                if (
+                    $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['log_ids']) && isset($_POST['log_ids'])
+                    && isset($_POST['form_submitted']) && $_POST['form_submitted'] == "true"
+                ) {
+                    $this->processLogs($_POST['log_ids']);
+                }
+                ?>
+                <br>
+                <!-- Verify submited input  -->
+                <input type="hidden" name="form_submitted" value="true">
+                <?php wp_nonce_field('verifyPokemonID', 'pokeNonce') ?>
+
+                <label for="log_ids" class="form-label">
+                    <p class="mb-1 text-danger"><strong>All ID's must be entered on a newline:</strong></p>
+                </label>
+                <textarea class="form-control mb-2" name="log_ids" rows="15">
+                    <?php
+                    $file_content = file_get_contents($this->getLogFile());
+                    echo  esc_textarea($file_content);
+                    ?>
+                </textarea>
+                <input type="submit" name="submit" value="Update Log" class="btn btn-sm btn-secondary">
+            </form>
         </div>
 <?php
     }
