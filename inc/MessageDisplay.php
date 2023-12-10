@@ -10,7 +10,7 @@ class MessageDisplay
             <?php
             echo $message;
             if (!empty($optionalParams)) {
-                echo "<span class='text-danger'> But with the following wrongly entered IDs where skipped:</span> " . implode(',', $optionalParams);
+                echo "<span class='text-danger'> But the following wrongly entered IDs were skipped:</span> " . implode(',', $optionalParams);
             }
             ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

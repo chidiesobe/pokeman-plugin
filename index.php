@@ -17,6 +17,7 @@ class PokemonSearch
     protected array $numeric_values;
     protected array $nonNumericalValues;
 
+
     function __construct()
     {
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
@@ -41,7 +42,7 @@ class PokemonSearch
         add_submenu_page(
             'pokemon-filter',
             'ID To Filter',
-            'ID List',
+            'Pokemon',
             'manage_options',
             'pokemon-filter',
             array($this, 'pokemonFilterPage'),
@@ -77,6 +78,11 @@ class PokemonSearch
         );
     }
 
+    function getLogFile()
+    {
+        return plugin_dir_path(__FILE__) . 'logs/logs.txt';
+    }
+
     function cleanPokemanID(string $ids = ""): string
     {
         // remove white space and ensure string integrity
@@ -93,15 +99,38 @@ class PokemonSearch
         // Remove duplicates
         $unique_values = array_unique($exploded_string);
 
+        // Remove numbers that exist in the logs file
+        $log_numbers = file($this->getLogFile(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $non_logged_number = array_filter($unique_values, function ($values) use ($log_numbers) {
+            return !in_array($values, $log_numbers);
+        });
+
         // Seperate numerical and non numerical values 
-        $this->numeric_values = array_filter($unique_values, function ($value) {
+        $this->numeric_values = array_filter($non_logged_number, function ($value) {
             return is_numeric($value);
         });
-        $this->nonNumericalValues = array_diff($unique_values, $this->numeric_values);
+        $this->nonNumericalValues = array_diff($non_logged_number, $this->numeric_values);
 
         $clean_ids = implode(',', $this->numeric_values);
         return $clean_ids;
     }
+
+    public function writeToLog(int $id): void
+    {
+        // Open or create file if does not exist
+        $file = fopen($this->getLogFile(), 'a');
+
+        if ($file) {
+            // Write data to end of the file
+            fwrite($file, $id . PHP_EOL);
+            // Close the file
+            fclose($file);
+        } else {
+            // Handle error if file couldn't be opened
+            echo "Unable to open file!";
+        }
+    }
+
 
     function pokemonApiCall(string $ids = "")
     {
@@ -124,15 +153,21 @@ class PokemonSearch
                 $moves = array_column($data['moves'] ?? [], 'move');
                 $movesName = array_column($moves, 'name');
 
+                if (empty($name) && !empty($this->numeric_values)) {
+                    $this->writeToLog($id);
+                }
+
                 return array(
                     'name' => $name, 'abilityName' => $abilityName,
                     'movesName' => $movesName,
                 );
             };
+            // if (isset($api[0]["name"])) {
             $result = array_map($api, $clean_ids);
 
             // return the extracted result from the api
-            var_dump($result);
+            return $result;
+            // }
         }
     }
 
