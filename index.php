@@ -1,5 +1,4 @@
 <?php
-
 /*
 Plugin Name: Pokemon API Search
 Description: A plugin that searches the PokemonAPI website and return results based on user inputed pokeman ID
@@ -10,13 +9,20 @@ Author URI: https://github.com/chidiesobe
 
 if (!defined('ABSPATH')) exit; // Exit if access directly
 
+require_once(plugin_dir_path(__FILE__) . 'inc/MessageDisplay.php');
+
 class PokemonSearch
 {
     protected string $getCleanedID;
+    protected array $numeric_values;
+    protected array $nonNumericalValues;
 
     function __construct()
     {
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
+
+        // instatiating class 
+        $this->msgDisplay = new MessageDisplay();
     }
 
     // Main menu
@@ -87,14 +93,17 @@ class PokemonSearch
         // Remove duplicates
         $unique_values = array_unique($exploded_string);
 
-        $numeric_values = array_filter($unique_values, function ($value) {
+        // Seperate numerical and non numerical values 
+        $this->numeric_values = array_filter($unique_values, function ($value) {
             return is_numeric($value);
         });
-        $clean_ids = implode(',', $numeric_values);
+        $this->nonNumericalValues = array_diff($unique_values, $this->numeric_values);
+
+        $clean_ids = implode(',', $this->numeric_values);
         return $clean_ids;
     }
 
-    function pokemonApiCall(string $ids = ""): array
+    function pokemonApiCall(string $ids = "")
     {
         $clean_ids = explode(',', $ids);
 
@@ -123,7 +132,7 @@ class PokemonSearch
             $result = array_map($api, $clean_ids);
 
             // return the extracted result from the api
-            return $result;
+            var_dump($result);
         }
     }
 
@@ -138,20 +147,11 @@ class PokemonSearch
             $clean_ids = $this->cleanPokemanID($_POST['pokemon_ids']);
             $this->getCleanedID = $clean_ids;
 
-            if (!empty($this->getCleanedID)) { ?>
-
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <strong>Congratulations <?php echo $current_user->display_name . ', ' ?></strong>Your search was successful!
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php
+            if (!empty($this->getCleanedID)) {
+                $this->msgDisplay->showMessage('Congratulations ', $current_user->display_name, 'your search was successful!', 'success',  $this->nonNumericalValues);
             }
-        } else { ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Sorry <?php echo $current_user->display_name . ', ' ?></strong>But your search was invalid!
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php
+        } else {
+            $this->msgDisplay->showMessage('Sorry', $current_user->display_name, ' but you are not authorized to carry out this action', 'danger', []);
         }
     }
 
@@ -213,35 +213,36 @@ class PokemonSearch
             <?php
             if (isset($this->getCleanedID)) {
                 $response = $this->pokemonApiCall($this->getCleanedID);
-                echo '<div class="row">';
-                foreach ($response as $pokemon) {
+                if (!empty($this->numeric_values)) {
+                    echo '<div class="row">';
+                    foreach ($response as $pokemon) {
             ?>
-                    <div class="col-sm-6 mb-3 mb-sm-0">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Pokemon's Name:<?= ' ' . ucfirst($pokemon['name']) ?></h5>
-                                <p class="card-text"><?= ' ' . ucfirst($pokemon['name']) ?> is a Pokemon with <strong><?= count($pokemon['movesName']) ?></strong> moves, with the following abilities: <strong><?= ' ' . implode(',', $pokemon['abilityName']) . '.' ?></strong></p>
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#<?= $pokemon['name'] ?>">
-                                    show all moves
-                                </button>
-                                <div class="modal fade" id="<?= $pokemon['name'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">All <?= ' ' . ucfirst($pokemon['name']) ?> Moves</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p class="text-center"><?= implode(',', $pokemon['movesName']) ?></p>
+                        <div class="col-sm-6 mb-3 mb-sm-0">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Pokemon's Name:<?= ' ' . ucfirst($pokemon['name']) ?></h5>
+                                    <p class="card-text"><?= ' ' . ucfirst($pokemon['name']) ?> is a Pokemon with <strong><?= count($pokemon['movesName']) ?></strong> moves, with the following abilities: <strong><?= ' ' . implode(',', $pokemon['abilityName']) . '.' ?></strong></p>
+                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#<?= $pokemon['name'] ?>">
+                                        show all moves
+                                    </button>
+                                    <div class="modal fade" id="<?= $pokemon['name'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">All <?= ' ' . ucfirst($pokemon['name']) ?> Moves</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-center"><?= implode(',', $pokemon['movesName']) ?></p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
             <?php
-
+                    }
                 }
                 echo '</div>';
             } else {
