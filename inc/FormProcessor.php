@@ -2,29 +2,19 @@
 require_once('MessageDisplay.php');
 require_once('SanitiseProcessor.php');
 
+// FormProcessor.php
 class FormProcessor
 {
-    private string $cleanedID = '';
 
-    // Getter and Setter Starts
+    public  $getCleanedID;
+
     public function __construct()
     {
-        $this->messageDisplay = new MessageDisplay();
         $this->sanitiseProcessor = new SanitiseProcessor();
+        $this->msgDisplay = new MessageDisplay();
     }
 
-    public function getCleanedID(): string
-    {
-        return $this->cleanedID;
-    }
-
-    public function setProcessForm(): void
-    {
-        $this->processForm();
-    }
-    // Getter and Setter Ends
-
-    private function processForm(): void
+    function processForm(): void
     {
         $current_user = wp_get_current_user();
 
@@ -32,12 +22,13 @@ class FormProcessor
 
             // Clean the supplied ID string 
             $this->sanitiseProcessor->setPokemonIDs($_POST['pokemon_ids']);
+
             $cleaned_id = $this->sanitiseProcessor->getNumericValues();
 
-            $this->cleanedID = $cleaned_id;
+            $this->getCleanedID = $cleaned_id;
 
-            if (!empty($this->cleanedID)) {
-                $this->messageDisplay->showMessage(
+            if (!empty($this->getCleanedID)) {
+                $this->msgDisplay->showMessage(
                     'Congratulations ',
                     $current_user->display_name,
                     'your search was successful!',
@@ -46,7 +37,7 @@ class FormProcessor
                 );
             }
         } else {
-            $this->messageDisplay->showMessage(
+            $this->msgDisplay->showMessage(
                 'Sorry',
                 $current_user->display_name,
                 ' but you are not authorized to carry out this action',
