@@ -8,16 +8,16 @@ class SanitiseProcessor
 
     public function __construct()
     {
-        $this->logsProcessor = new LogsProcessor();
+        $this->logsProcessor = new LogsProcessor(); // Initialize LogsProcessor
     }
 
-    // The mixed type is used to handle 
-    // cases when a user enters a non numeric value only
+    // Returns mixed type to accommodate both numeric and non-numeric values
     public function getNumericValues(): mixed
     {
         return $this->numericValues;
     }
 
+    // Accepts a string of Pokemon IDs, sanitizes, and sets the numeric values
     public function setPokemonIDs(string $ids): void
     {
         $this->cleanPokemanID($ids);
@@ -25,7 +25,7 @@ class SanitiseProcessor
 
     private function cleanPokemanID(string $ids = ""): void
     {
-        // remove white space and ensure string integrity
+        // Remove white space and ensure string integrity
         $input_ids = str_replace(' ', '', sanitize_text_field($ids));
         $input_ids = str_replace('.', '', sanitize_text_field($input_ids));
 
@@ -39,19 +39,19 @@ class SanitiseProcessor
         // Remove duplicates
         $unique_values = array_unique($exploded_string);
 
-        // Remove numbers that exist in the logs file
+        // Retrieve numeric values that are not present in the logs file
         $log_numbers = file($this->logsProcessor->getLogFilePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
         $non_logged_number = array_filter($unique_values, function ($values) use ($log_numbers) {
             return !in_array($values, $log_numbers);
         });
 
-        // Seperate numerical and non numerical values 
+        // Separating numeric and non-numeric values
         $this->numericValues = array_filter($non_logged_number, function ($value) {
             return is_numeric($value);
         });
         $this->nonNumericalValues = array_diff($non_logged_number, $this->numericValues);
 
+        // Convert the numeric values back to a string for storage or further processing
         $this->numericValues = implode(',', $this->numericValues);
         // $this->numericValues = $clean_ids;
     }

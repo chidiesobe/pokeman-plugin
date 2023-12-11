@@ -9,6 +9,7 @@ Author URI: https://github.com/chidiesobe
 
 if (!defined('ABSPATH')) exit; // Exit if access directly
 
+// Required files
 require_once(plugin_dir_path(__FILE__) . 'inc/ApiProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/LogsProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/FormProcessor.php');
@@ -21,9 +22,10 @@ class PokemonSearch
 
     function __construct()
     {
+        // Add action to create the admin menu
         add_action('admin_menu', array($this, 'pokeAdminMenu'));
 
-        // instatiating class 
+        // Instantiate necessary classes
         $this->apiProcessor = new ApiProcessor();
         $this->msgDisplay = new MessageDisplay();
         $this->logsProcessor = new LogsProcessor();
@@ -32,9 +34,10 @@ class PokemonSearch
         $this->sanitiseProcessor = new SanitiseProcessor();
     }
 
-    // Main menu
+    // Create admin menu and submenus
     function pokeAdminMenu(): void
     {
+        // Main menu
         $mainPage = add_menu_page(
             'Pokemon Search by ID',
             'Pokemon Filter',
@@ -44,7 +47,8 @@ class PokemonSearch
             'dashicons-superhero',
             100
         );
-        //--- Submenu section starts
+
+        // Submenus
         add_submenu_page(
             'pokemon-filter',
             'ID To Filter',
@@ -74,7 +78,7 @@ class PokemonSearch
             array($this, 'apiUrlPage'),
             3
         );
-        //--- Submenu section ends
+
 
         // Adding Boostrap To Pages
         add_action("load-{$mainPage}", array($this, 'styleAccess'));
@@ -82,7 +86,7 @@ class PokemonSearch
         add_action("load-{$apiPage}", array($this, 'styleAccess'));
     }
 
-    // Boostrap access
+    // Enqueue Bootstrap styles and scripts
     function styleAccess(): void
     {
         wp_enqueue_style(
@@ -96,23 +100,24 @@ class PokemonSearch
         );
     }
 
-    // Filtering page
+    // Display Pokemon filtering page
     function pokemonFilterPage(): void
     {
         include(plugin_dir_path(__FILE__) . 'pages/pokemon_filter.php');
     }
 
-    // Log page
+    // Display Pokemon log page
     function pokemonLogsPage(): void
     {
         include(plugin_dir_path(__FILE__) . 'pages/pokemon_log.php');
     }
 
-    // Api page
+    // Display API URL page
     function apiUrlPage(): void
     {
         include(plugin_dir_path(__FILE__) . 'pages/api_url.php');
     }
 }
 
+// Instantiate the PokemonSearch class to initialize the plugin
 $pokemonSearch = new PokemonSearch();

@@ -1,13 +1,15 @@
   <div class="container mt-3">
       <div class="text-primary">
           <h4 class="text-primary">Pokemon Filter</h4>
+          <!-- Accordion for displaying Pokemon Search Guide -->
           <div class="accordion" id="accordion">
               <div class="accordion-item">
                   <h2 class="accordion-header" id="headingOne">
                       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                          <span class="text-danger">Kindly, make yourself familiar with the Pokemon Search Guide</span>
+                          <span class="text-danger">Please take a moment to familiarize yourself with the Pokemon Search Guide.</span>
                       </button>
                   </h2>
+                  <!-- List of guidelines for searching Pokemon -->
                   <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordion">
                       <div class="accordion-body">
                           <ul class="list-group">
@@ -26,8 +28,9 @@
       </div>
 
       <br>
+      <!-- Form for entering Pokemon IDs -->
       <form method="POST">
-          <!-- if user submits the form -->
+          <!-- Check if the form is submitted and process the form -->
           <?php
             if (
                 $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['pokemon_ids']) && isset($_POST['pokemon_ids'])
@@ -37,7 +40,7 @@
             }
             ?>
           <br>
-          <!-- Verify submited input  -->
+          <!-- Verify submitted input using nonce verification -->
           <input type="hidden" name="form_submitted" value="true">
           <?php wp_nonce_field('verifyPokemonID', 'pokeNonce') ?>
 
@@ -49,9 +52,9 @@
       </form>
       <br>
 
-      <!-- Result of the search -->
+      <!-- Displaying search results -->
       <?php
-        // var_dump($this->formProcessor->getCleanedID);
+
         if (isset($this->formProcessor->getCleanedID)) {
 
             $this->apiPreprocessor->setPokemonApiCall($this->formProcessor->getCleanedID);
@@ -70,6 +73,7 @@
                               <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#<?= $pokemon['name'] ?>">
                                   show all moves
                               </button>
+                              <!-- Modal to display all moves -->
                               <div class="modal fade" id="<?= $pokemon['name'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                                   <div class="modal-dialog">
                                       <div class="modal-content">

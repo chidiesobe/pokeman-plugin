@@ -4,7 +4,7 @@
     </div>
 
     <form method="POST">
-        <!-- if user submits the form -->
+        <!-- Checks if the form is submitted and handle API URL storage -->
         <?php
         if (
             $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['api_url']) && isset($_POST['api_url'])
