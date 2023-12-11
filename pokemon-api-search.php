@@ -11,10 +11,9 @@ if (!defined('ABSPATH')) exit; // Exit if access directly
 
 require_once(plugin_dir_path(__FILE__) . 'inc/ApiProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/LogsProcessor.php');
+require_once(plugin_dir_path(__FILE__) . 'inc/FormProcessor.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/MessageDisplay.php');
 require_once(plugin_dir_path(__FILE__) . 'inc/SanitiseProcessor.php');
-
-require_once(plugin_dir_path(__FILE__) . 'inc/FormProcessor.php');
 
 
 class PokemonSearch

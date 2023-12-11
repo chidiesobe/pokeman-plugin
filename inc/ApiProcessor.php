@@ -1,5 +1,6 @@
 <?php
 
+require_once('LogsProcessor.php');
 require_once('MessageDisplay.php');
 require_once('SanitiseProcessor.php');
 
@@ -12,6 +13,7 @@ class ApiProcessor
     {
         $this->msgDisplay = new MessageDisplay();
         $this->sanitiseProcessor = new SanitiseProcessor();
+        $this->logsProcessor = new LogsProcessor();
     }
 
     // Getter and Setter Starts
@@ -81,8 +83,8 @@ class ApiProcessor
 
                 $moves = array_column($data['moves'] ?? [], 'move');
                 $movesName = array_column($moves, 'name');
-
-                if (empty($name) && !empty($this->sanitiseProcessor->getNumericValues())) {
+                // && !empty($this->sanitiseProcessor->getNumericValues()
+                if (empty($name)) {
                     $this->logsProcessor->writeToLog($id);
                 }
 

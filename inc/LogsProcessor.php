@@ -28,7 +28,7 @@ class LogsProcessor
         return false;
     }
 
-    public function writeToLog(int $id): void
+    public function writeToLog(string $id): void
     {
         $this->writeToFile($id);
     }
