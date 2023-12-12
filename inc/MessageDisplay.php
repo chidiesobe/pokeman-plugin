@@ -4,7 +4,7 @@ class MessageDisplay
 
 /**
  * Displays a formatted message using Bootstrap alert classes.
- * @param string $expression - The expression to display in the message.
+ * @param string $expression - The expression to display in the message (e.g congratulations).
  * @param string $username - The username associated with the message.
  * @param string $message - The main message content to be displayed.
  * @param string $messageType - The type of message (e.g., success, warning, danger).
